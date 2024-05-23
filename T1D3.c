@@ -23,7 +23,8 @@ bool isPrime(int num) {
         return false;
     }
     i++;
-
+// UPDATE: poniżej chciałem skorzystać z pierwiastka kwadratowego, ale nie wiedziałem, czy można skorzystać z odpowiedniej libki gdzie jest sqrt, wiec spróbowałem potworzyć cos swojego, ale w teście czy
+// z palca 99 nie chce wyjść z petli, byc moze to z powodu przyblizenia bo to int, wiec 49,5 sprowadza do 49 i jest pętla nieskonczona maybe.
     //poniższe nie działają przy 99
 //    int temp, sqrt;
 //
@@ -38,7 +39,7 @@ bool isPrime(int num) {
 //
 //    }
 
-//    to wogóle garbage 
+//    to wogóle garbage
 //    printf("P  of ‘%d’ is ‘%d’", num, sqrt);
 //    if (sqrt % 2 != 0) {
 //        return true;
