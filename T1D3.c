@@ -23,7 +23,7 @@ bool isPrime(int num) {
         return false;
     }
     i++;
-  
+
     //poniższe nie działają przy 99
 //    int temp, sqrt;
 //
@@ -37,6 +37,8 @@ bool isPrime(int num) {
 //
 //
 //    }
+
+//    to wogóle garbage 
 //    printf("P  of ‘%d’ is ‘%d’", num, sqrt);
 //    if (sqrt % 2 != 0) {
 //        return true;
