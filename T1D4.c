@@ -7,14 +7,18 @@
 // Spraw aby funkcja pod wskaźnikiem wypisała na ekranie "SIGMA".
 
 //dodatkowe
-void sigmaCall(char *str) {
-    printf("%s", str);
+void sigmaCall(void) {
+    printf("%s","SIGMA\n");
 }
+void sigmaFankszyn (void (*fankszyn) ()) {
+    fankszyn();
+}
+//void sigmaFankszyn(void ()) {
+//    char* sigmaPtr = "SIGMA";
+//    sigmaCall(sigmaPtr);
+//}
+//
 
-void sigmaFankszyn(void) {
-    char* sigmaPtr = "SIGMA";
-    sigmaCall(sigmaPtr);
-}
 
 //glowne zadanie
 void swap(int *a, int *b) {
@@ -32,6 +36,7 @@ int main(void) {
     printf("Przed swapem: x = %d, y = %d\n", x, y);
     swap(&x, &y);
     printf("Po swapie: x = %d, y = %d\n", x, y);
-    sigmaFankszyn();
+//    sigmaFankszyn();
+    sigmaFankszyn(sigmaCall);
     return 0;
 }
