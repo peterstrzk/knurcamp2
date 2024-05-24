@@ -14,23 +14,42 @@
 // tak tak moge normalne nazwy zmiennych pisac typu n itd itd
 int main(void) {
     int* elements;
-    int numberOfElements;
+    int numberOfElements, i;
+
     // Zadanie 1: Poproś użytkownika o podanie liczby elementów
+
     printf("%s", "dAwaj liczbe elementów!\n");
-    scanf("%d", numberOfElements);
+    scanf("%d", &numberOfElements);
 
     // Zadanie 2: Przydziel pamięć dynamicznie dla 'n' elementów używając calloc
-    elements = (int*)calloc(numberOfElements, sizeof(numberOfElements));
+
+    elements = (int*)calloc(numberOfElements, sizeof(int));
+
     // Zadanie 3: Sprawdź, czy pamięć została pomyślnie przydzielona
-    if (elements != NULL ) {
-        printf("%s", "Memory allocated!");
-    }
+
+    if (elements == NULL ) {
+
+        printf("%s", "Memory is not allocated!\n");
+
+    } else {
+
+        printf("%s", "Memory allocated!\n");
 
     // Zadanie 4: Wprowadź elementy do przydzielonej pamięci
 
-    // Zadanie 5: Wyświetl te elementy
+        for (i = 0; i < numberOfElements; ++i) {
+
+            elements[i] = i + 1;
+        }
+        // Zadanie 5: Wyświetl te elementy
+        printf("%s","The elements of the array are: \n");
+        for (i = 0; i < numberOfElements; ++i) {
+            //tu użyłem specifier character dla "spacji" xD
+            printf("%3d", elements[i]);
+        }
+    }
 
     // Zadanie 6: Zwolnij przydzieloną pamięć
-
+    free(elements);
     return 0;
 }
