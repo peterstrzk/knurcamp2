@@ -8,7 +8,7 @@
  */
 
 void sortujPrzezWskazniki(int *tab, int rozmiar) {
-    //dupa dupa
+
     //czeking czy następna liczba jest wieksza od pierwszej jakos takos idąc po indeksie 01, 12, 23, 34, 45
 //    for (int i = 0; i < rozmiar; i++) {
 //        if (tab[i] > tab[i + 1]) {
@@ -17,7 +17,17 @@ void sortujPrzezWskazniki(int *tab, int rozmiar) {
 //            printf("%s", "nie jest\n");
 //        }
 //    }
-     
+     printf("%d\n", *tab);
+     int i, j, temp;
+     for(i = 0; i < rozmiar - 1; i++) {
+         for(j = 0; j < rozmiar - i - 1; j++) {
+             if(*(tab + j) > *(tab + j + 1)) {
+                 temp = *(tab + j);
+                 *(tab + j) = *(tab + j + 1);
+                 *(tab + j + 1) = temp;
+             }
+         }
+     }
 }
 
 int main() {
