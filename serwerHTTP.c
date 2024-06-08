@@ -82,7 +82,7 @@ int main(void) {
     struct sockaddr_in sai;
     sai.sin_addr.s_addr = inet_addr("127.0.0.1");
     sai.sin_family = AF_INET;
-    sai.sin_port = htons(2137);
+    sai.sin_port = htons(8181);
     memset(sai.sin_zero, 0, 8);
 
     if (bind(server, (struct sockaddr*)&sai, sizeof(sai)) != 0) handle_error("bind");
