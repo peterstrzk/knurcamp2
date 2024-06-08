@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -45,22 +44,19 @@ const char* STATIC_RESPONSE_SUCHA_KREWETA =
 #define INPUT_BUFFER_SIZE 4096
 
 void findPath(const char* request, char* target) {
-    while(*(request)++ != ' ') {}
-    while(*request != ' ') {
+    while (*(request)++ != ' ');
+    while (*request != ' ') {
         *(target)++ = *(request)++;
     }
     *target = 0x00;
 }
 
-const char* pseudoRouter(const char* requestedPath)
-{
-    if(strcmp("/suchyKreweta", requestedPath) == 0) {
+const char* pseudoRouter(const char* requestedPath) {
+    if (strcmp("/suchyKreweta", requestedPath) == 0) {
         return STATIC_RESPONSE_SUCHA_KREWETA;
-    }
-    else if(strcmp("/vanish", requestedPath) == 0) {
+    } else if (strcmp("/vanish", requestedPath) == 0) {
         return NULL;
-    }
-    else {
+    } else {
         return STATIC_RESPONSE;
     }
 }
@@ -68,76 +64,63 @@ const char* pseudoRouter(const char* requestedPath)
 int set_nonblocking(int fd) {
     int flags = fcntl(fd, F_GETFL, 0);
     if (flags == -1) return -1;
-    flags |= O_NONBLOCK;
-    return fcntl(fd, F_SETFL, flags);
+    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
+
+void handle_error(const char *msg) {
+    perror(msg);
+    exit(EXIT_FAILURE);
 }
 
 int main(void) {
     char inputBuffer[INPUT_BUFFER_SIZE + 1];
     int server = socket(AF_INET, SOCK_STREAM, 0);
-    if(server == -1) {
-        printf("Nie udalo sie stworzyc socketa aha12\n");
-        exit(-1);
-    }
+    if (server == -1) handle_error("socket");
 
-    if (set_nonblocking(server) == -1) {
-        printf("Nie udalo sie ustawic nieblokujacego socketa\n");
-        exit(-1);
-    }
+    if (set_nonblocking(server) == -1) handle_error("fcntl");
 
     struct sockaddr_in sai;
     sai.sin_addr.s_addr = inet_addr("127.0.0.1");
     sai.sin_family = AF_INET;
-    sai.sin_port = htons(8181);
+    sai.sin_port = htons(2137);
     memset(sai.sin_zero, 0, 8);
 
-    int ret = bind(server, (struct sockaddr*)&sai, sizeof(sai));
-    if(ret != 0) {
-        printf("Dupa nie dziala aha ok\n");
-        exit(-1);
-    }
-
-    ret = listen(server, 1024);
-    if(ret != 0) {
-        printf("Dupa nie udalo sie nasluchiwac na komendzie w plocku\n");
-        exit(-1);
-    }
+    if (bind(server, (struct sockaddr*)&sai, sizeof(sai)) != 0) handle_error("bind");
+    if (listen(server, 1024) != 0) handle_error("listen");
 
     fd_set master_set, working_set;
     FD_ZERO(&master_set);
     FD_SET(server, &master_set);
+    int max_fd = server;
 
-    while(1) {
+    while (1) {
         working_set = master_set;
-        ret = select(FD_SETSIZE, &working_set, NULL, NULL, NULL);
-        if(ret < 0) {
-            printf("Dupa select error\n");
-            exit(-1);
-        }
+        if (select(max_fd + 1, &working_set, NULL, NULL, NULL) < 0) handle_error("select");
 
-        for(int i = 0; i < FD_SETSIZE; ++i) {
-            if(FD_ISSET(i, &working_set)) {
-                if(i == server) {
+        for (int i = 0; i <= max_fd; ++i) {
+            if (FD_ISSET(i, &working_set)) {
+                if (i == server) {
                     struct sockaddr_in clientData;
                     socklen_t size = sizeof(clientData);
                     int client = accept(server, (struct sockaddr*)&clientData, &size);
-                    if(client == -1) {
-                        printf("Dupa blond w accept\n");
+                    if (client == -1) {
+                        perror("accept");
                     } else {
                         printf("Accepted connection from %s:%d\n",
                                inet_ntop(AF_INET, &clientData.sin_addr.s_addr, inputBuffer, 16),
                                ntohs(clientData.sin_port));
 
-                        if(set_nonblocking(client) == -1) {
-                            printf("Nie udalo sie ustawic nieblokujacego socketa klienta\n");
+                        if (set_nonblocking(client) == -1) {
+                            perror("fcntl");
                             close(client);
                         } else {
                             FD_SET(client, &master_set);
+                            if (client > max_fd) max_fd = client;
                         }
                     }
                 } else {
-                    size_t received = recv(i, inputBuffer, INPUT_BUFFER_SIZE, 0);
-                    if(received <= 0) {
+                    ssize_t received = recv(i, inputBuffer, INPUT_BUFFER_SIZE, 0);
+                    if (received <= 0) {
                         close(i);
                         FD_CLR(i, &master_set);
                     } else {
@@ -147,12 +130,12 @@ int main(void) {
                         printf("Requested path: %s\n", pathBuffer);
 
                         const char* response = pseudoRouter(pathBuffer);
-                        if(response == NULL) {
+                        if (response == NULL) {
                             shutdown(i, SHUT_RDWR);
                             close(i);
                             FD_CLR(i, &master_set);
                         } else {
-                            size_t sent = send(i, response, strlen(response), 0);
+                            ssize_t sent = send(i, response, strlen(response), 0);
                             shutdown(i, SHUT_RDWR);
                             close(i);
                             FD_CLR(i, &master_set);
