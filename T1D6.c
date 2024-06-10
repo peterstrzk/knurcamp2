@@ -17,7 +17,7 @@ void sortujPrzezWskazniki(int *tab, int rozmiar) {
 //            printf("%s", "nie jest\n");
 //        }
 //    }
-     printf("%d\n", *tab);
+     printf("%d\n", *(tab + 1) );
      int i, j, temp;
      for(i = 0; i < rozmiar - 1; i++) {
          for(j = 0; j < rozmiar - i - 1; j++) {

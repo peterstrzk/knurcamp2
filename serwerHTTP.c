@@ -9,6 +9,9 @@
 #include <sys/epoll.h>
 #include <errno.h>
 
+#define INPUT_BUFFER_SIZE 4096
+#define MAX_EVENTS 1024
+
 const char* STATIC_RESPONSE =
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: text/html; charset=UTF-8\r\n"
@@ -17,7 +20,6 @@ const char* STATIC_RESPONSE =
         "Accept-Ranges: bytes\r\n"
         "Connection: close\r\n"
         "\r\n"
-        "<html>\r\n"
         "<html>\r\n"
         "  <head>\r\n"
         "    <title>An Example Page</title>\r\n"
@@ -43,15 +45,12 @@ const char* STATIC_RESPONSE_SUCHA_KREWETA =
         "  </body>\r\n"
         "</html>";
 
-#define INPUT_BUFFER_SIZE 4096
-#define MAX_EVENTS 1024
-//użyłem jak cos epolla, bo nie zrozumiałem czym był select xDD
 void findPath(const char* request, char* target) {
     while (*(request)++ != ' ');
-    while (*request != ' ') {
+    while (*request != ' ' && *request != '\0') {
         *(target)++ = *(request)++;
     }
-    *target = 0x00;
+    *target = '\0';
 }
 
 const char* pseudoRouter(const char* requestedPath) {
@@ -77,31 +76,35 @@ void handle_error(const char *msg) {
 
 int main(void) {
     char inputBuffer[INPUT_BUFFER_SIZE + 1];
-    int server = socket(AF_INET, SOCK_STREAM, 0);
-    if (server == -1) handle_error("socket");
+    char ipBuffer[INET_ADDRSTRLEN];
+    char pathBuffer[1024];
 
-    if (set_nonblocking(server) == -1) handle_error("fcntl");
+    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd == -1) handle_error("socket");
 
-    struct sockaddr_in sai;
-    sai.sin_addr.s_addr = inet_addr("127.0.0.1");
-    sai.sin_family = AF_INET;
-    sai.sin_port = htons(8181);
-    memset(sai.sin_zero, 0, 8);
+    if (set_nonblocking(server_fd) == -1) handle_error("fcntl");
 
-    if (bind(server, (struct sockaddr*)&sai, sizeof(sai)) != 0) handle_error("bind");
-    if (listen(server, 1024) != 0) handle_error("listen");
+    struct sockaddr_in server_addr = {
+            .sin_family = AF_INET,
+            .sin_port = htons(8181),
+            .sin_addr.s_addr = inet_addr("127.0.0.1")
+    };
+
+    if (bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) != 0) handle_error("bind");
+    if (listen(server_fd, 1024) != 0) handle_error("listen");
 
     int epoll_fd = epoll_create1(0);
     if (epoll_fd == -1) handle_error("epoll_create1");
 
-    struct epoll_event event;
-    struct epoll_event events[MAX_EVENTS];
+    struct epoll_event event = {
+            .data.fd = server_fd,
+            .events = EPOLLIN
+    };
 
-    event.data.fd = server;
-    event.events = EPOLLIN;
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server, &event) == -1) handle_error("epoll_ctl");
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &event) == -1) handle_error("epoll_ctl");
 
     while (1) {
+        struct epoll_event events[MAX_EVENTS];
         int num_fds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
         if (num_fds == -1) {
             if (errno == EINTR) continue;
@@ -109,54 +112,59 @@ int main(void) {
         }
 
         for (int i = 0; i < num_fds; ++i) {
-            if (events[i].data.fd == server) {
-                struct sockaddr_in clientData;
-                socklen_t size = sizeof(clientData);
-                int client = accept(server, (struct sockaddr*)&clientData, &size);
-                if (client == -1) {
+            if (events[i].data.fd == server_fd) {
+                struct sockaddr_in client_addr;
+                socklen_t addr_len = sizeof(client_addr);
+                int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &addr_len);
+                if (client_fd == -1) {
                     perror("accept");
-                } else {
-                    printf("Accepted connection from %s:%d\n",
-                           inet_ntop(AF_INET, &clientData.sin_addr.s_addr, inputBuffer, 16),
-                           ntohs(clientData.sin_port));
+                    continue;
+                }
 
-                    if (set_nonblocking(client) == -1) {
-                        perror("fcntl");
-                        close(client);
-                    } else {
-                        event.data.fd = client;
-                        event.events = EPOLLIN;
-                        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client, &event) == -1) {
-                            perror("epoll_ctl");
-                            close(client);
-                        }
-                    }
+                printf("Accepted connection from %s:%d\n",
+                       inet_ntop(AF_INET, &client_addr.sin_addr, ipBuffer, sizeof(ipBuffer)),
+                       ntohs(client_addr.sin_port));
+
+                if (set_nonblocking(client_fd) == -1) {
+                    perror("fcntl");
+                    close(client_fd);
+                    continue;
+                }
+
+                event.data.fd = client_fd;
+                event.events = EPOLLIN;
+                if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
+                    perror("epoll_ctl");
+                    close(client_fd);
                 }
             } else {
-                ssize_t received = recv(events[i].data.fd, inputBuffer, INPUT_BUFFER_SIZE, 0);
+                int client_fd = events[i].data.fd;
+                ssize_t received = recv(client_fd, inputBuffer, INPUT_BUFFER_SIZE, 0);
                 if (received <= 0) {
-                    close(events[i].data.fd);
+                    close(client_fd);
                 } else {
-                    inputBuffer[received] = 0x00;
-                    char pathBuffer[1024];
+                    inputBuffer[received] = '\0';
                     findPath(inputBuffer, pathBuffer);
                     printf("Requested path: %s\n", pathBuffer);
 
                     const char* response = pseudoRouter(pathBuffer);
                     if (response == NULL) {
-                        shutdown(events[i].data.fd, SHUT_RDWR);
-                        close(events[i].data.fd);
+                        shutdown(client_fd, SHUT_RDWR);
+                        close(client_fd);
                     } else {
-                        ssize_t sent = send(events[i].data.fd, response, strlen(response), 0);
-                        shutdown(events[i].data.fd, SHUT_RDWR);
-                        close(events[i].data.fd);
-                        printf("Sent %zu bytes to client and closed connection.\n", sent);
+                        ssize_t sent = send(client_fd, response, strlen(response), MSG_NOSIGNAL);
+                        if (sent == -1) {
+                            perror("send");
+                        }
+                        shutdown(client_fd, SHUT_RDWR);
+                        close(client_fd);
+                        printf("Sent %zd bytes to client and closed connection.\n", sent);
                     }
                 }
             }
         }
     }
 
-    close(server);
+    close(server_fd);
     return 0;
 }
